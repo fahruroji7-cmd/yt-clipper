@@ -10,7 +10,7 @@
     active: 'in',              // which grip keyboard nudges move
     previewing: false,
     player: null, playerReady: false, apiLoading: false,
-    clips: new Map(), pollTimer: null,
+    clips: new Map(), pollTimer: null, server: false,
   };
 
   /* ---------- helpers ---------- */
@@ -62,8 +62,16 @@
     el.classList.toggle('ok', ok);
   }
 
+  /* Address of the download server. Empty = same origin as this page. */
+  const store = {
+    get() { try { return localStorage.getItem('potong.api') || ''; } catch { return ''; } },
+    set(v) { try { v ? localStorage.setItem('potong.api', v) : localStorage.removeItem('potong.api'); } catch { /* private mode */ } },
+  };
+  const cleanBase = (v) => String(v || '').trim().replace(/\/+$/, '');
+  let API = cleanBase(new URLSearchParams(location.search).get('api') || store.get());
+
   async function api(path, opts) {
-    const res = await fetch(path, opts);
+    const res = await fetch(API + path, opts);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Gagal (${res.status})`);
     return data;
@@ -268,6 +276,8 @@
     if (S.player && S.playerReady) S.player.cueVideoById(id);
     else loadApi();
 
+    await booted;
+    if (!S.server || S.videoId !== id) return;
     try {
       const info = await api(`/api/info?url=${encodeURIComponent(S.url)}`);
       if (S.videoId !== id) return;
@@ -369,8 +379,8 @@
       const acts = li.querySelector('.acts');
       acts.textContent = '';
       if (job.status === 'done') {
-        const open = Object.assign(document.createElement('a'), { textContent: 'Buka', href: `/api/clips/${job.id}/file?inline`, target: '_blank', rel: 'noopener' });
-        const dl = Object.assign(document.createElement('a'), { textContent: 'Unduh', href: `/api/clips/${job.id}/file`, className: 'dl' });
+        const open = Object.assign(document.createElement('a'), { textContent: 'Buka', href: `${API}/api/clips/${job.id}/file?inline`, target: '_blank', rel: 'noopener' });
+        const dl = Object.assign(document.createElement('a'), { textContent: 'Unduh', href: `${API}/api/clips/${job.id}/file`, className: 'dl' });
         dl.setAttribute('download', job.filename || '');
         acts.append(open, dl);
       }
@@ -505,19 +515,62 @@
 
   /* ---------- boot ---------- */
 
-  api('/api/health').then((h) => {
+  async function connect() {
     const el = $('health');
-    const missing = [!h.ytdlp && 'yt-dlp', !h.ffmpeg && 'ffmpeg'].filter(Boolean);
+    let h = null;
+    try { h = await api('/api/health'); } catch { /* no server reachable */ }
+    S.server = !!(h && 'ytdlp' in h);
+    const missing = S.server ? [!h.ytdlp && 'yt-dlp', !h.ffmpeg && 'ffmpeg'].filter(Boolean) : [];
     el.hidden = false;
     el.classList.toggle('bad', missing.length > 0);
-    el.textContent = missing.length ? `${missing.join(' & ')} belum terpasang` : `yt-dlp ${h.ytdlp} · siap`;
-  }).catch(() => {});
+    el.textContent = !S.server ? 'mode tautan' : missing.length ? `${missing.join(' & ')} belum terpasang` : `yt-dlp ${h.ytdlp} · siap`;
+    $('dlBox').hidden = !S.server;
+    $('srvBox').classList.toggle('on', S.server);
+    $('srvState').textContent = S.server ? 'terhubung' : 'tidak terhubung';
+    $('srvUrl').value = API;
+    if (!S.server) { $('guide').hidden = true; S.clips.clear(); renderClips(); return; }
+    syncAspect();
+    try {
+      const { clips } = await api('/api/clips');
+      S.clips.clear();
+      clips.forEach((c) => S.clips.set(c.id, c));
+      renderClips();
+      poll();
+    } catch { /* list stays empty */ }
+  }
 
-  api('/api/clips').then(({ clips }) => {
-    clips.forEach((c) => S.clips.set(c.id, c));
-    renderClips();
-    poll();
-  }).catch(() => {});
+  $('srvForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    API = cleanBase($('srvUrl').value);
+    store.set(API);
+    $('srvState').textContent = 'memeriksa…';
+    await connect();
+    if (S.server && S.videoId && !S.title) loadVideo(S.url);
+  });
+
+  /* ---------- share links ---------- */
+
+  function embedUrl() {
+    const a = Math.floor(S.in), b = Math.max(a + 1, Math.ceil(S.out));
+    return `https://www.youtube.com/embed/${S.videoId}?start=${a}&end=${b}&autoplay=1&rel=0`;
+  }
+  async function copy(btn, text) {
+    if (!S.videoId || !S.dur) return;
+    const label = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Tersalin ✓';
+      btn.classList.add('done');
+      setTimeout(() => { btn.textContent = label; btn.classList.remove('done'); }, 1600);
+    } catch {
+      window.prompt('Salin teks ini:', text);
+    }
+  }
+  $('copyLink').addEventListener('click', (e) => copy(e.currentTarget, embedUrl()));
+  $('copyEmbed').addEventListener('click', (e) => copy(e.currentTarget,
+    `<iframe width="560" height="315" src="${embedUrl().replace('&autoplay=1', '').replace(/&/g, '&amp;')}" title="${(S.title || 'Klip YouTube').replace(/"/g, '&quot;')}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>`));
+
+  const booted = connect();
 
   const preset = new URLSearchParams(location.search).get('url');
   if (preset) { $('url').value = preset; loadVideo(preset); }

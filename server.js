@@ -16,6 +16,8 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_CLIP_SECONDS = Number(process.env.MAX_CLIP_SECONDS) || 30 * 60;
 const MAX_PARALLEL = Number(process.env.MAX_PARALLEL) || 2;
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+// Origins (comma separated, or *) of pages hosted elsewhere that may call this API.
+const ALLOW_ORIGIN = (process.env.ALLOW_ORIGIN || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
 
 fs.mkdirSync(CLIPS_DIR, { recursive: true });
 
@@ -289,6 +291,17 @@ async function handle(req, res) {
     return serveStatic(req, res, p);
   }
 
+  const origin = req.headers.origin;
+  if (origin && (ALLOW_ORIGIN.includes('*') || ALLOW_ORIGIN.includes(origin))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    res.setHeader('Access-Control-Max-Age', '600');
+  }
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
   if (p === '/api/health' && req.method === 'GET') {
     return send(res, 200, {
       ytdlp: YTDLP ? YTDLP.version : null, ffmpeg: HAS_FFMPEG, maxClipSeconds: MAX_CLIP_SECONDS,
@@ -384,7 +397,8 @@ if (require.main === module) {
     console.log(`\n  Potong — YouTube clipper\n  → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}\n`);
     console.log(`  yt-dlp : ${YTDLP ? YTDLP.version : 'TIDAK DITEMUKAN (pip install -U yt-dlp)'}`);
     console.log(`  ffmpeg : ${HAS_FFMPEG ? 'ok' : 'TIDAK DITEMUKAN'}`);
-    console.log(`  klip   : ${CLIPS_DIR}\n`);
+    console.log(`  klip   : ${CLIPS_DIR}`);
+    console.log(`  origin : ${ALLOW_ORIGIN.length ? ALLOW_ORIGIN.join(', ') : 'hanya halaman ini sendiri'}\n`);
   });
 }
 

@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="/" aria-label="Potong">
+  <a class="brand" href="./" aria-label="Potong">
     <span class="mark" aria-hidden="true"><i></i></span>
     <span class="word">Potong</span>
   </a>
@@ -33,7 +33,7 @@
     <ol>
       <li><b>01</b><span>Tempel tautan video YouTube di atas.</span></li>
       <li><b>02</b><span>Geser dua penanda di timeline, atau tekan <kbd>I</kbd> dan <kbd>O</kbd> saat video diputar.</span></li>
-      <li><b>03</b><span>Pilih kualitas dan rasio, lalu buat klip. Hasilnya MP4 atau MP3.</span></li>
+      <li><b>03</b><span>Salin tautan klipnya, atau unduh sebagai MP4/MP3 bila server pengunduh terhubung.</span></li>
     </ol>
   </section>
 
@@ -104,6 +104,7 @@
         <button type="button" data-len="90">90 dtk</button>
       </div>
 
+      <div class="group" id="dlBox" hidden>
       <fieldset>
         <legend>Kualitas</legend>
         <div class="seg" id="quality">
@@ -130,6 +131,26 @@
         Buat klip
       </button>
       <p class="msg" id="cutMsg" role="alert" hidden></p>
+      </div>
+
+      <div class="share">
+        <span class="lbl">Bagikan tanpa mengunduh</span>
+        <div class="two">
+          <button type="button" class="ghost sm" id="copyLink">Salin tautan klip</button>
+          <button type="button" class="ghost sm" id="copyEmbed">Salin kode sematan</button>
+        </div>
+        <p class="note" id="shareNote">Memutar hanya bagian terpilih, langsung dari YouTube (dibulatkan ke detik).</p>
+      </div>
+
+      <details class="srv" id="srvBox">
+        <summary>Server pengunduh: <b id="srvState">memeriksa…</b></summary>
+        <p class="note">Untuk mengunduh MP4/MP3, jalankan <code>server.js</code> di komputer Anda, lalu tempel alamatnya di sini (mis. alamat tunnel). Kosongkan untuk memutuskan.</p>
+        <form class="tin" id="srvForm">
+          <label for="srvUrl" class="sr">Alamat server</label>
+          <input id="srvUrl" type="url" placeholder="https://….trycloudflare.com" spellcheck="false">
+          <button type="submit">Sambungkan</button>
+        </form>
+      </details>
     </aside>
   </section>
 

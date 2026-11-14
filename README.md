@@ -25,6 +25,28 @@ Buka http://localhost:5173
 Pintasan: `Spasi` putar/jeda, `←` `→` geser 1 detik, `Shift+←/→` geser penanda aktif 0,1 detik,
 `Ctrl+scroll` di timeline untuk zoom.
 
+## Dua mode
+
+| Mode | Kapan aktif | Yang bisa dilakukan |
+| --- | --- | --- |
+| **Tautan** | Halaman dibuka tanpa server (mis. di GitHub Pages) | Tandai potongan, salin tautan klip atau kode sematan. Tidak ada berkas. |
+| **Unduh** | Halaman terhubung ke `server.js` | Semua di atas, ditambah unduh MP4/MP3. |
+
+## Online lewat GitHub Pages
+
+1. Di GitHub: **Settings → Pages → Source: GitHub Actions**. Setiap push ke `main` akan memasang isi folder `public/`.
+2. Halaman tersedia di `https://NAMA-AKUN.github.io/yt-clipper/` dalam mode Tautan.
+3. Untuk mode Unduh dari halaman itu, jalankan server di komputer Anda dengan izin untuk alamat Pages:
+
+   ```bash
+   ALLOW_ORIGIN=https://NAMA-AKUN.github.io node server.js
+   ```
+
+   Di PowerShell: `$env:ALLOW_ORIGIN="https://NAMA-AKUN.github.io"; node server.js`
+
+4. Di halaman, buka **Server pengunduh** dan isi `http://localhost:5173` (dari komputer yang sama) atau alamat tunnel
+   (`cloudflared tunnel --url http://localhost:5173`) agar bisa dipakai dari perangkat lain.
+
 ## Pengaturan (variabel lingkungan)
 
 | Variabel | Bawaan | Fungsi |
@@ -34,6 +56,7 @@ Pintasan: `Spasi` putar/jeda, `←` `→` geser 1 detik, `Shift+←/→` geser p
 | `CLIPS_DIR` | `./clips` | Folder hasil klip |
 | `MAX_CLIP_SECONDS` | `1800` | Durasi klip maksimum |
 | `MAX_PARALLEL` | `2` | Jumlah klip yang diproses bersamaan |
+| `ALLOW_ORIGIN` | — | Alamat halaman lain yang boleh memakai server ini (pisahkan dengan koma) |
 | `YTDLP_PATH`, `FFMPEG_PATH` | — | Lokasi biner jika tidak ada di PATH |
 
 ## Catatan
