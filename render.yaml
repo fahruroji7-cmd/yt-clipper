@@ -1,0 +1,12 @@
+# Blueprint untuk Render: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: potong
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ACCESS_KEY
+        generateValue: true
+      - key: ALLOW_ORIGIN
+        value: https://fahruroji7-cmd.github.io

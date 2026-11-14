@@ -66,11 +66,16 @@
   const store = {
     get() { try { return localStorage.getItem('potong.api') || ''; } catch { return ''; } },
     set(v) { try { v ? localStorage.setItem('potong.api', v) : localStorage.removeItem('potong.api'); } catch { /* private mode */ } },
+    getKey() { try { return localStorage.getItem('potong.key') || ''; } catch { return ''; } },
+    setKey(v) { try { v ? localStorage.setItem('potong.key', v) : localStorage.removeItem('potong.key'); } catch { /* private mode */ } },
   };
   const cleanBase = (v) => String(v || '').trim().replace(/\/+$/, '');
-  let API = cleanBase(new URLSearchParams(location.search).get('api') || store.get());
+  let API = cleanBase(new URLSearchParams(location.search).get('api') || store.get() || window.POTONG_API);
+  let KEY = store.getKey();
+  const keyQuery = (sep) => (KEY ? `${sep}key=${encodeURIComponent(KEY)}` : '');
 
   async function api(path, opts) {
+    opts = { ...opts, headers: { ...(opts && opts.headers), ...(KEY && { 'X-Access-Key': KEY }) } };
     const res = await fetch(API + path, opts);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Gagal (${res.status})`);
@@ -379,8 +384,8 @@
       const acts = li.querySelector('.acts');
       acts.textContent = '';
       if (job.status === 'done') {
-        const open = Object.assign(document.createElement('a'), { textContent: 'Buka', href: `${API}/api/clips/${job.id}/file?inline`, target: '_blank', rel: 'noopener' });
-        const dl = Object.assign(document.createElement('a'), { textContent: 'Unduh', href: `${API}/api/clips/${job.id}/file`, className: 'dl' });
+        const open = Object.assign(document.createElement('a'), { textContent: 'Buka', href: `${API}/api/clips/${job.id}/file?inline${keyQuery('&')}`, target: '_blank', rel: 'noopener' });
+        const dl = Object.assign(document.createElement('a'), { textContent: 'Unduh', href: `${API}/api/clips/${job.id}/file${keyQuery('?')}`, className: 'dl' });
         dl.setAttribute('download', job.filename || '');
         acts.append(open, dl);
       }
@@ -519,30 +524,37 @@
     const el = $('health');
     let h = null;
     try { h = await api('/api/health'); } catch { /* no server reachable */ }
-    S.server = !!(h && 'ytdlp' in h);
+    const reachable = !!(h && 'ytdlp' in h);
+    let clips = null;
+    if (reachable) { try { clips = (await api('/api/clips')).clips; } catch { /* wrong or missing key */ } }
+    const locked = reachable && !clips;
+    S.server = reachable && !locked;
     const missing = S.server ? [!h.ytdlp && 'yt-dlp', !h.ffmpeg && 'ffmpeg'].filter(Boolean) : [];
     el.hidden = false;
-    el.classList.toggle('bad', missing.length > 0);
-    el.textContent = !S.server ? 'mode tautan' : missing.length ? `${missing.join(' & ')} belum terpasang` : `yt-dlp ${h.ytdlp} · siap`;
+    el.classList.toggle('bad', missing.length > 0 || locked);
+    el.textContent = locked ? 'butuh kunci akses' : !S.server ? 'mode tautan'
+      : missing.length ? `${missing.join(' & ')} belum terpasang` : `yt-dlp ${h.ytdlp} · siap`;
     $('dlBox').hidden = !S.server;
     $('srvBox').classList.toggle('on', S.server);
-    $('srvState').textContent = S.server ? 'terhubung' : 'tidak terhubung';
+    $('srvState').textContent = S.server ? 'terhubung' : locked ? 'butuh kunci akses' : 'tidak terhubung';
     $('srvUrl').value = API;
-    if (!S.server) { $('guide').hidden = true; S.clips.clear(); renderClips(); return; }
+    $('srvKey').value = KEY;
+    $('keyRow').hidden = !(reachable && h.needsKey);
+    if (locked) $('srvBox').open = true;
+    S.clips.clear();
+    if (!S.server) { $('guide').hidden = true; renderClips(); return; }
     syncAspect();
-    try {
-      const { clips } = await api('/api/clips');
-      S.clips.clear();
-      clips.forEach((c) => S.clips.set(c.id, c));
-      renderClips();
-      poll();
-    } catch { /* list stays empty */ }
+    clips.forEach((c) => S.clips.set(c.id, c));
+    renderClips();
+    poll();
   }
 
   $('srvForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     API = cleanBase($('srvUrl').value);
-    store.set(API);
+    KEY = $('srvKey').value.trim();
+    store.set(API === cleanBase(window.POTONG_API) ? '' : API);
+    store.setKey(KEY);
     $('srvState').textContent = 'memeriksa…';
     await connect();
     if (S.server && S.videoId && !S.title) loadVideo(S.url);

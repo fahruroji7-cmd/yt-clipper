@@ -288,3 +288,4 @@ footer p { max-width: 1240px; margin: 0 auto; padding: 16px 24px 22px; color: va
 .srv .note { margin: 8px 0; }
 .srv code { font: 12px var(--mono); color: var(--ink); }
 .srv .tin input { font: 13px var(--mono); padding: 9px 10px; }
+.srvf { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }

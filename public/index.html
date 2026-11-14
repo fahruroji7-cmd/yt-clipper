@@ -144,11 +144,13 @@
 
       <details class="srv" id="srvBox">
         <summary>Server pengunduh: <b id="srvState">memeriksa…</b></summary>
-        <p class="note">Untuk mengunduh MP4/MP3, jalankan <code>server.js</code> di komputer Anda, lalu tempel alamatnya di sini (mis. alamat tunnel). Kosongkan untuk memutuskan.</p>
-        <form class="tin" id="srvForm">
+        <p class="note">Untuk mengunduh MP4/MP3, halaman ini perlu tersambung ke server pengunduh (di cloud atau di komputer Anda). Tempel alamatnya di sini; kosongkan untuk memutuskan.</p>
+        <form class="srvf" id="srvForm">
           <label for="srvUrl" class="sr">Alamat server</label>
-          <input id="srvUrl" type="url" placeholder="https://….trycloudflare.com" spellcheck="false">
-          <button type="submit">Sambungkan</button>
+          <div class="tin"><input id="srvUrl" type="url" placeholder="https://nama-layanan.onrender.com" spellcheck="false"></div>
+          <label for="srvKey" class="sr">Kunci akses</label>
+          <div class="tin" id="keyRow" hidden><input id="srvKey" type="password" placeholder="Kunci akses" autocomplete="off"></div>
+          <button type="submit" class="ghost sm">Sambungkan</button>
         </form>
       </details>
     </aside>
@@ -164,6 +166,7 @@
   <p>Gunakan hanya untuk video milik sendiri, berlisensi bebas, atau yang sudah Anda dapat izinnya. Hak cipta tetap pada pemilik video.</p>
 </footer>
 
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

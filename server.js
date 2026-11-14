@@ -16,6 +16,10 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_CLIP_SECONDS = Number(process.env.MAX_CLIP_SECONDS) || 30 * 60;
 const MAX_PARALLEL = Number(process.env.MAX_PARALLEL) || 2;
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+// When set, every API call except /api/health must carry this key.
+const ACCESS_KEY = process.env.ACCESS_KEY || '';
+// Finished clips older than this are deleted (0 = keep forever).
+const CLIP_TTL_MINUTES = Number(process.env.CLIP_TTL_MINUTES) || 0;
 // Origins (comma separated, or *) of pages hosted elsewhere that may call this API.
 const ALLOW_ORIGIN = (process.env.ALLOW_ORIGIN || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
 
@@ -34,10 +38,16 @@ function findYtDlp() {
   return null;
 }
 const YTDLP = findYtDlp();
+// Newer yt-dlp needs a JavaScript runtime for YouTube; Node is already here.
+const YTDLP_BASE = [];
+if (YTDLP) {
+  const help = spawnSync(YTDLP.cmd, [...YTDLP.pre, '--help'], { encoding: 'utf8' }).stdout || '';
+  if (help.includes('--js-runtimes')) YTDLP_BASE.push('--js-runtimes', `node:${process.execPath}`);
+}
 const HAS_FFMPEG = spawnSync(FFMPEG, ['-version']).status === 0;
 
 function ytdlp(args) {
-  return spawn(YTDLP.cmd, [...YTDLP.pre, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+  return spawn(YTDLP.cmd, [...YTDLP.pre, ...YTDLP_BASE, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 /* ---------- validation ---------- */
@@ -280,6 +290,24 @@ function serveClip(req, res, job, inline) {
   fs.createReadStream(job.file).pipe(res);
 }
 
+function keyMatches(given) {
+  const a = crypto.createHash('sha256').update(String(given || '')).digest();
+  const b = crypto.createHash('sha256').update(ACCESS_KEY).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+if (CLIP_TTL_MINUTES > 0) {
+  setInterval(() => {
+    const cutoff = Date.now() - CLIP_TTL_MINUTES * 60000;
+    for (const job of jobs.values()) {
+      if ((job.status === 'done' || job.status === 'error') && job.createdAt < cutoff) {
+        if (job.file) fs.rmSync(job.file, { force: true });
+        jobs.delete(job.id);
+      }
+    }
+  }, 60000).unref();
+}
+
 /* ---------- routes ---------- */
 
 async function handle(req, res) {
@@ -296,7 +324,7 @@ async function handle(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Access-Key');
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
     res.setHeader('Access-Control-Max-Age', '600');
   }
@@ -305,7 +333,12 @@ async function handle(req, res) {
   if (p === '/api/health' && req.method === 'GET') {
     return send(res, 200, {
       ytdlp: YTDLP ? YTDLP.version : null, ffmpeg: HAS_FFMPEG, maxClipSeconds: MAX_CLIP_SECONDS,
+      needsKey: !!ACCESS_KEY, ttlMinutes: CLIP_TTL_MINUTES,
     });
+  }
+
+  if (ACCESS_KEY && !keyMatches(req.headers['x-access-key'] || url.searchParams.get('key'))) {
+    return send(res, 401, { error: 'Kunci akses salah atau belum diisi.', code: 'key' });
   }
 
   if (p === '/api/info' && req.method === 'GET') {
@@ -398,6 +431,7 @@ if (require.main === module) {
     console.log(`  yt-dlp : ${YTDLP ? YTDLP.version : 'TIDAK DITEMUKAN (pip install -U yt-dlp)'}`);
     console.log(`  ffmpeg : ${HAS_FFMPEG ? 'ok' : 'TIDAK DITEMUKAN'}`);
     console.log(`  klip   : ${CLIPS_DIR}`);
+    console.log(`  kunci  : ${ACCESS_KEY ? 'wajib' : 'tidak dipakai'}`);
     console.log(`  origin : ${ALLOW_ORIGIN.length ? ALLOW_ORIGIN.join(', ') : 'hanya halaman ini sendiri'}\n`);
   });
 }
