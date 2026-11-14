@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Potong — YouTube Clipper</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141210'/%3E%3Cpath d='M8 6v20M24 6v20' stroke='%23ff5a36' stroke-width='3' stroke-linecap='round'/%3E%3Crect x='11' y='11' width='10' height='10' rx='1.5' fill='%23f3ede2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" aria-label="Potong">
+    <span class="mark" aria-hidden="true"><i></i></span>
+    <span class="word">Potong</span>
+  </a>
+  <p class="tag">Tempel tautan YouTube, tandai bagiannya, unduh klipnya.</p>
+  <span class="health" id="health" hidden></span>
+</header>
+
+<main>
+  <form class="urlbar" id="urlForm" autocomplete="off">
+    <label for="url" class="sr">Tautan YouTube</label>
+    <input id="url" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=…" spellcheck="false" required>
+    <button type="button" class="ghost" id="pasteBtn">Tempel</button>
+    <button type="submit" class="solid">Muat video</button>
+  </form>
+  <p class="msg" id="urlMsg" role="alert" hidden></p>
+
+  <section class="empty" id="empty">
+    <ol>
+      <li><b>01</b><span>Tempel tautan video YouTube di atas.</span></li>
+      <li><b>02</b><span>Geser dua penanda di timeline, atau tekan <kbd>I</kbd> dan <kbd>O</kbd> saat video diputar.</span></li>
+      <li><b>03</b><span>Pilih kualitas dan rasio, lalu buat klip. Hasilnya MP4 atau MP3.</span></li>
+    </ol>
+  </section>
+
+  <section class="desk" id="desk" hidden>
+    <div class="stage">
+      <div class="meta">
+        <h1 id="title">Memuat…</h1>
+        <p id="uploader"></p>
+      </div>
+
+      <div class="screen">
+        <div id="player"></div>
+        <div class="guide" id="guide" hidden><i></i></div>
+      </div>
+
+      <div class="transport">
+        <button type="button" class="round" id="playBtn" aria-label="Putar / jeda">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path id="playIcon" d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
+        </button>
+        <span class="clock"><b id="now">0:00.0</b><span id="total"> / 0:00</span></span>
+        <span class="spacer"></span>
+        <button type="button" class="ghost sm" id="previewBtn">Pratinjau klip</button>
+        <label class="check"><input type="checkbox" id="loop" checked><span>Ulangi</span></label>
+        <span class="zoom" role="group" aria-label="Zoom timeline">
+          <button type="button" id="zoomOut" aria-label="Perkecil">−</button>
+          <button type="button" id="zoomFit">Semua</button>
+          <button type="button" id="zoomSel">Ke klip</button>
+          <button type="button" id="zoomIn" aria-label="Perbesar">+</button>
+        </span>
+      </div>
+
+      <div class="timeline" id="timeline">
+        <div class="ruler" id="ruler"></div>
+        <div class="track" id="track">
+          <div class="lane" id="lane">
+            <div class="sel" id="sel"></div>
+            <div class="head" id="head"></div>
+            <button type="button" class="grip in" id="gripIn" aria-label="Titik mulai"></button>
+            <button type="button" class="grip out" id="gripOut" aria-label="Titik selesai"></button>
+          </div>
+        </div>
+      </div>
+      <p class="hint"><kbd>Spasi</kbd> putar/jeda · <kbd>I</kbd> mulai di sini · <kbd>O</kbd> selesai di sini · <kbd>←</kbd><kbd>→</kbd> mundur/maju 1 detik (penanda terpilih ikut bergeser 0,1 dtk dengan <kbd>Shift</kbd>)</p>
+    </div>
+
+    <aside class="panel">
+      <div class="times">
+        <div class="field">
+          <label for="inT">Mulai</label>
+          <div class="tin">
+            <input id="inT" type="text" inputmode="decimal" value="0:00.0">
+            <button type="button" id="setIn" title="Pakai posisi pemutar (I)">⇤ di sini</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="outT">Selesai</label>
+          <div class="tin">
+            <input id="outT" type="text" inputmode="decimal" value="0:00.0">
+            <button type="button" id="setOut" title="Pakai posisi pemutar (O)">di sini ⇥</button>
+          </div>
+        </div>
+      </div>
+      <div class="len">Durasi klip <b id="len">0:00.0</b></div>
+      <div class="quick" role="group" aria-label="Durasi cepat">
+        <button type="button" data-len="15">15 dtk</button>
+        <button type="button" data-len="30">30 dtk</button>
+        <button type="button" data-len="60">60 dtk</button>
+        <button type="button" data-len="90">90 dtk</button>
+      </div>
+
+      <fieldset>
+        <legend>Kualitas</legend>
+        <div class="seg" id="quality">
+          <label><input type="radio" name="q" value="1080"><span>1080p</span></label>
+          <label><input type="radio" name="q" value="720" checked><span>720p</span></label>
+          <label><input type="radio" name="q" value="480"><span>480p</span></label>
+          <label><input type="radio" name="q" value="audio"><span>MP3</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset id="aspectSet">
+        <legend>Rasio</legend>
+        <div class="seg" id="aspect">
+          <label><input type="radio" name="a" value="original" checked><span>Asli</span></label>
+          <label><input type="radio" name="a" value="9:16"><span>9:16</span></label>
+          <label><input type="radio" name="a" value="1:1"><span>1:1</span></label>
+          <label><input type="radio" name="a" value="4:5"><span>4:5</span></label>
+        </div>
+        <p class="note" id="aspectNote">Seluruh bingkai video.</p>
+      </fieldset>
+
+      <button type="button" class="cut" id="cutBtn">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Buat klip
+      </button>
+      <p class="msg" id="cutMsg" role="alert" hidden></p>
+    </aside>
+  </section>
+
+  <section class="shelf" id="shelf" hidden>
+    <h2>Klip <span id="count"></span></h2>
+    <ul id="clips"></ul>
+  </section>
+</main>
+
+<footer>
+  <p>Gunakan hanya untuk video milik sendiri, berlisensi bebas, atau yang sudah Anda dapat izinnya. Hak cipta tetap pada pemilik video.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "potong-youtube-clipper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tempel tautan YouTube, tandai bagiannya, unduh klipnya.",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
